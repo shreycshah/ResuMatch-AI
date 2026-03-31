@@ -13,7 +13,7 @@ from pathlib import Path
 _env_path = Path(__file__).resolve().parents[2] / ".env"
 load_dotenv(dotenv_path=_env_path)
 
-MAX_OUTPUT_TOKENS = 4096
+MAX_OUTPUT_TOKENS = 8192
 MAX_RETRIES = 1
 
 def call_anthropic(resume: ResumeJSON, jd: JobDescription) -> dict:
