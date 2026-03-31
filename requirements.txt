@@ -1,0 +1,4 @@
+# Core — install at least one LLM SDK
+anthropic>=0.40.0
+openai>=1.50.0
+python-dotenv
