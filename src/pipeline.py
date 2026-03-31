@@ -1,6 +1,6 @@
 """
 Main pipeline orchestrator.
-Wires together parsing → LLM → injection → compilation.
+Wires together parsing → LLM → injection → compilation → tracking.
 """
 
 import os
@@ -9,6 +9,7 @@ from src.llm import call_anthropic, call_openai
 from src.output.injector import LaTeXInjector
 from src.output.compiler import  PDFCompiler
 from src.output.manager import OutputManager
+from src.output.tracker import ApplicationTracker
 
 class ResumeTailorPipeline:
     """
@@ -23,7 +24,7 @@ class ResumeTailorPipeline:
 
     MODEL_LABELS = {
         "anthropic": "Claude Haiku 4.5",
-        "openai": "GPT-4o mini",
+        "openai": "GPT-4.1 mini",
     }
 
     def __init__(self, model: str = "anthropic", output_dir: str = "output"):
@@ -33,6 +34,9 @@ class ResumeTailorPipeline:
         self.injector = LaTeXInjector()
         self.compiler = PDFCompiler()
         self.output_mgr = OutputManager(base_dir=output_dir)
+        self.tracker = ApplicationTracker(
+            csv_path=os.path.join(output_dir, "applications_log.csv")
+        )
 
     def run(self, resume_path: str, company: str, title: str, jd_text: str) -> dict:
         """
@@ -92,7 +96,9 @@ class ResumeTailorPipeline:
         except RuntimeError as e:
             print(f"\n   ⚠ Compilation failed: {e}")
             print(f"   .tex saved to: {tex_path}")
-            return self._result(tex_path, None, llm_output, error=str(e))
+            fail_result = self._result(tex_path, None, llm_output, error=str(e))
+            self.tracker.log(company, title, self.model, fail_result)
+            return fail_result
 
         # ⑥ Validate page count
         pages = self.compiler.get_page_count(pdf_path)
@@ -103,7 +109,10 @@ class ResumeTailorPipeline:
         self._footer(tex_path, pdf_path, pages)
         self._print_diff(llm_output)
 
-        return self._result(tex_path, pdf_path, llm_output)
+        result = self._result(tex_path, pdf_path, llm_output)
+        self.tracker.log(company, title, self.model, result)
+
+        return result
 
     # ── Output formatting ──
 
