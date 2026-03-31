@@ -64,7 +64,7 @@ Examples:
     jd.add_argument('--jd', help='Job description text (inline)')
     jd.add_argument('--jd-file', help='Path to a .txt file containing the JD')
 
-    p.add_argument('--model', choices=['anthropic', 'openai'], default='openai',
+    p.add_argument('--model', choices=['anthropic', 'openai'], default='anthropic',
                    help='LLM: anthropic (Haiku 4.5) or openai (GPT-4.1 mini). Default: anthropic')
     p.add_argument('--output-dir', default='output', help='Base output directory. Default: output/')
 
