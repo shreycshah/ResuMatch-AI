@@ -3,18 +3,23 @@ PDF compiler.
 Auto-detects available LaTeX compiler (tectonic > pdflatex > xelatex > lualatex)
 and compiles .tex → .pdf with timeout and error handling.
 
-Tectonic-specific: strips \\input{glyphtounicode} and \\pdfgentounicode=1 from
-the .tex before compiling, since tectonic's XeTeX backend handles Unicode natively
-and doesn't ship glyphtounicode.tex.
+Tectonic fix: copies glyphtounicode.tex into the output directory so tectonic
+can find it (it doesn't ship this file in its bundle). If the file can't be
+sourced, falls back to stripping the \\input{glyphtounicode} line.
 """
 
 import os
 import re
 import shutil
 import subprocess
+import urllib.request
 
+# URL to download glyphtounicode.tex if not found locally
+GLYPHTOUNICODE_URL = (
+    "https://raw.githubusercontent.com/latex3/unicode-data/main/glyphtounicode.tex"
+)
 
-# Lines that break tectonic but are only needed for pdflatex ATS compatibility
+# Lines to strip only as a last resort
 TECTONIC_STRIP_PATTERNS = [
     re.compile(r'^\s*\\input\{glyphtounicode\}\s*$'),
     re.compile(r'^\s*\\pdfgentounicode\s*=\s*1\s*$'),
@@ -35,9 +40,9 @@ class PDFCompiler:
         tex_path = os.path.abspath(tex_path)
         output_dir = os.path.abspath(output_dir)
 
-        # If using tectonic, strip incompatible lines before compiling
+        # Ensure tectonic can find glyphtounicode.tex
         if self.compiler == 'tectonic':
-            self._strip_tectonic_incompatible(tex_path)
+            self._ensure_glyphtounicode(tex_path, output_dir)
 
         cmd = self._build_command(tex_path, output_dir)
 
@@ -56,6 +61,9 @@ class PDFCompiler:
                 f"Command: {' '.join(cmd)}\n"
                 f"Output:\n{err[:2000]}"
             )
+
+        # Clean up pdflatex build artifacts (.aux, .log, .out, .fls, .fdb_latexmk, .synctex.gz)
+        self._cleanup_build_artifacts(output_dir, basename)
 
         return pdf_path
 
@@ -92,12 +100,7 @@ class PDFCompiler:
 
     def _build_command(self, tex_path: str, output_dir: str) -> list[str]:
         if self.compiler == 'tectonic':
-            return [
-                'tectonic',
-                '-o', output_dir,
-                '--untrusted',              # sandbox mode
-                tex_path,
-            ]
+            return ['tectonic', '-o', output_dir, tex_path]
         else:
             return [
                 self.compiler,
@@ -106,12 +109,46 @@ class PDFCompiler:
                 tex_path,
             ]
 
+    def _ensure_glyphtounicode(self, tex_path: str, output_dir: str):
+        """
+        Make glyphtounicode.tex available to tectonic.
+
+        Strategy:
+        1. Check if it already exists next to the .tex file → done
+        2. Check if it exists in the project root → copy it
+        3. Download it from GitHub → save next to the .tex file
+        4. If all fail → strip the \\input line as fallback
+        """
+        tex_dir = os.path.dirname(tex_path)
+        target = os.path.join(tex_dir, "glyphtounicode.tex")
+
+        # Already in the output directory
+        if os.path.exists(target):
+            return
+
+        # Check project root (one level up from output dir, or cwd)
+        for search_dir in [os.getcwd(), os.path.dirname(output_dir)]:
+            candidate = os.path.join(search_dir, "glyphtounicode.tex")
+            if os.path.exists(candidate):
+                shutil.copy2(candidate, target)
+                print(f"   Copied glyphtounicode.tex from {candidate}")
+                return
+
+        # Download from GitHub
+        try:
+            print(f"   Downloading glyphtounicode.tex...")
+            urllib.request.urlretrieve(GLYPHTOUNICODE_URL, target)
+            print(f"   Saved to {target}")
+            return
+        except Exception as e:
+            print(f"   ⚠ Could not download glyphtounicode.tex: {e}")
+
+        # Last resort: strip the incompatible lines
+        print(f"   ⚠ Stripping \\input{{glyphtounicode}} as fallback")
+        self._strip_tectonic_incompatible(tex_path)
+
     def _strip_tectonic_incompatible(self, tex_path: str):
-        """
-        Remove lines from the .tex file that are incompatible with tectonic.
-        These are pdflatex-specific commands for ATS Unicode support;
-        tectonic handles Unicode natively via its XeTeX backend.
-        """
+        """Remove lines from .tex that are incompatible with tectonic."""
         with open(tex_path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
 
@@ -127,3 +164,11 @@ class PDFCompiler:
         if changed:
             with open(tex_path, 'w', encoding='utf-8') as f:
                 f.writelines(filtered)
+
+    def _cleanup_build_artifacts(self, output_dir: str, basename: str):
+        """Remove pdflatex build artifacts, keeping only .tex and .pdf."""
+        junk_extensions = ['.aux', '.log', '.out', '.fls', '.fdb_latexmk', '.synctex.gz', '.nav', '.snm', '.toc']
+        for ext in junk_extensions:
+            path = os.path.join(output_dir, basename + ext)
+            if os.path.exists(path):
+                os.remove(path)
