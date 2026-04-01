@@ -136,6 +136,13 @@ class ResumeTailorPipeline:
     def _print_diff(self, llm_output: dict):
         print("── Changes Applied ──\n")
 
+        ps = llm_output.get("project_selection")
+        if ps:
+            selected = ps.get("selected_indices", [])
+            rationale = ps.get("rationale", "")
+            print(f"  Projects selected: {selected}")
+            print(f"    Why: {rationale}\n")
+
         if llm_output.get("tailored_summary"):
             print(f"  Summary: (rewritten)")
             print(f"    → {llm_output['tailored_summary'][:100]}...\n")

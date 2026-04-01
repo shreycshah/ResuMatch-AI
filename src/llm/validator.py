@@ -42,6 +42,17 @@ def parse_llm_response(raw: str) -> dict:
         if key not in data:
             raise ValueError(f"LLM response missing required key: '{key}'")
 
+    # Validate project_selection if present
+    ps = data.get("project_selection")
+    if ps:
+        indices = ps.get("selected_indices", [])
+        if not isinstance(indices, list) or len(indices) == 0:
+            print("  ⚠ project_selection.selected_indices is empty or invalid, ignoring")
+            data["project_selection"] = None
+        elif not all(isinstance(i, int) for i in indices):
+            print("  ⚠ project_selection.selected_indices contains non-integers, ignoring")
+            data["project_selection"] = None
+
     # Validate bullet rewrites
     for i, br in enumerate(data.get("bullet_rewrites", [])):
         for fld in ["section", "bullet_index", "original", "rewritten"]:

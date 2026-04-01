@@ -25,11 +25,93 @@ class LaTeXInjector:
         """
         lines = copy.deepcopy(original_lines)
 
+        self._inject_project_selection(lines, resume, llm_output)
         self._inject_bullets(lines, resume, llm_output)
         self._inject_skills(lines, resume, llm_output)
         self._inject_summary(lines, resume, llm_output)
 
         return lines
+
+    # ── Project selection (comment out unselected projects) ──
+
+    def _inject_project_selection(self, lines: list[str], resume: ResumeJSON, llm_output: dict):
+        """
+        Comment out projects NOT selected by the LLM.
+        Also removes trailing \\vspace after the last selected project.
+        Preserves \\resumeSubHeadingListEnd and other section-level commands.
+        """
+        selection = llm_output.get("project_selection")
+        if not selection:
+            return
+
+        selected = set(selection.get("selected_indices", []))
+        if not selected:
+            return
+
+        projects_section = self._find_section(resume, "projects")
+        if not projects_section or not projects_section.entries:
+            return
+
+        entries = projects_section.entries
+
+        # ── Compute safe line ranges for each entry ──
+        # An entry's commentable range is from its line_start to
+        # the next entry's line_start - 1 (or section's content end).
+        # We must EXCLUDE section-level commands like \resumeSubHeadingListEnd, \end{...}
+        section_closers = {
+            r'\resumeSubHeadingListEnd',
+            r'\end{document}',
+            r'\end{itemize}',
+        }
+
+        # Find where the actual project content ends (before section closers)
+        content_end = projects_section.line_end
+        for i in range(projects_section.line_end, projects_section.line_start, -1):
+            stripped = lines[i].strip().replace(' ', '')
+            if any(closer.replace(' ', '') in stripped for closer in section_closers):
+                content_end = i - 1
+            else:
+                break
+
+        # Build per-entry line ranges
+        entry_ranges = []
+        for idx, entry in enumerate(entries):
+            start = entry.line_start
+            if idx + 1 < len(entries):
+                end = entries[idx + 1].line_start - 1
+            else:
+                end = content_end
+            entry_ranges.append((start, end))
+
+        # ── Comment out unselected entries (reverse order) ──
+        for idx in range(len(entries) - 1, -1, -1):
+            if idx in selected:
+                continue
+
+            start, end = entry_ranges[idx]
+            for i in range(start, min(end + 1, len(lines))):
+                if not lines[i].lstrip().startswith('%'):
+                    lines[i] = '% ' + lines[i]
+
+        # ── Remove trailing \vspace after the last selected project ──
+        last_selected = max(selected)
+        _, last_end = entry_ranges[last_selected]
+
+        # Scan both inside the entry range (backwards from end)
+        # and a few lines after it — the \vspace can be in either spot
+        scan_start = max(last_end - 3, entry_ranges[last_selected][0])
+        scan_end = min(last_end + 3, len(lines) - 1)
+
+        for i in range(scan_end, scan_start - 1, -1):
+            stripped = lines[i].strip()
+            if r'\vspace' in stripped and not stripped.startswith('%'):
+                # Only comment out vspace lines, not \resumeItemListEnd etc.
+                lines[i] = '% ' + lines[i]
+                break  # only remove the last/closest one
+
+        rationale = selection.get("rationale", "")
+        if rationale:
+            print(f"   Projects selected: {sorted(selected)} — {rationale[:80]}")
 
     # ── Bullet rewrites (experience, projects, teaching) ──
 
