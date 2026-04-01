@@ -1,5 +1,5 @@
 from .api import call_anthropic, call_openai
-from .prompts import build_user_prompt
+from .prompt_builder import build_user_prompt
 from .validator import parse_llm_response
 
 __all__ = [

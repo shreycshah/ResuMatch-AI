@@ -8,7 +8,7 @@ Model names, max_tokens, and system prompt are read from llm_config.yaml
 
 from src.models.resume import ResumeJSON
 from src.models.job_description import JobDescription
-from src.llm.prompts import build_user_prompt
+from src.llm.prompt_builder import build_user_prompt
 from src.llm.validator import parse_llm_response
 from src.config import get_config
 
