@@ -12,7 +12,7 @@ Handles:
 import copy
 import re
 from typing import Optional
-from src.data_models.resume_models import ResumeJSON, Section
+from src.models.resume import ResumeJSON, Section
 
 
 class LaTeXInjector:

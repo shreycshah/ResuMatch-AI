@@ -1,11 +1,10 @@
-from .client import call_anthropic, call_openai
-from .prompts import SYSTEM_PROMPT, build_user_prompt
+from .api import call_anthropic, call_openai
+from .prompts import build_user_prompt
 from .validator import parse_llm_response
 
 __all__ = [
     "call_anthropic",
     "call_openai",
-    "SYSTEM_PROMPT",
     "build_user_prompt",
     "parse_llm_response",
 ]

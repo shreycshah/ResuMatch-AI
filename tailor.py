@@ -29,7 +29,7 @@ def main() -> int:
         return 1
 
     # Run pipeline
-    pipeline = ResumeTailorPipeline(model=args.model, output_dir=args.output_dir)
+    pipeline = ResumeTailorPipeline(output_dir=args.output_dir)
 
     try:
         result = pipeline.run(
@@ -53,7 +53,7 @@ def parse_args() -> argparse.Namespace:
         epilog="""
 Examples:
   python tailor.py --resume master.tex --company Netflix --title "ML Engineer" --jd "We are looking for..."
-  python tailor.py --resume master.tex --company "Meta AI" --title "Senior DS" --jd-file jd.txt --model openai
+  python tailor.py --resume master.tex --company "Meta AI" --title "Senior DS" --jd-file jd.txt
         """,
     )
     p.add_argument('--resume', required=True, help='Path to master resume .tex file')
@@ -64,8 +64,6 @@ Examples:
     jd.add_argument('--jd', help='Job description text (inline)')
     jd.add_argument('--jd-file', help='Path to a .txt file containing the JD')
 
-    p.add_argument('--model', choices=['anthropic', 'openai'], default='anthropic',
-                   help='LLM: anthropic (Haiku 4.5) or openai (GPT-4.1 mini). Default: anthropic')
     p.add_argument('--output-dir', default='output', help='Base output directory. Default: output/')
 
     return p.parse_args()

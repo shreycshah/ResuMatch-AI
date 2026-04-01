@@ -8,8 +8,9 @@ from src.parser import LaTeXParser, JDParser
 from src.llm import call_anthropic, call_openai
 from src.output.injector import LaTeXInjector
 from src.output.compiler import  PDFCompiler
-from src.output.manager import OutputManager
+from src.output.file_manager import OutputManager
 from src.output.tracker import ApplicationTracker
+from src.config import get_config
 
 class ResumeTailorPipeline:
     """
@@ -27,8 +28,8 @@ class ResumeTailorPipeline:
         "openai": "GPT-4.1 mini",
     }
 
-    def __init__(self, model: str = "anthropic", output_dir: str = "output"):
-        self.model = model
+    def __init__(self, output_dir: str = "output"):
+        self.model = get_config().resume_tailoring.active_provider
         self.parser = LaTeXParser()
         self.jd_parser = JDParser()
         self.injector = LaTeXInjector()
@@ -62,15 +63,16 @@ class ResumeTailorPipeline:
         # ② Parse job description
         print("② Parsing job description...")
         jd = self.jd_parser.parse(company, title, jd_text)
-        print(f"   Required: {', '.join(jd.required_skills[:8])}{'...' if len(jd.required_skills) > 8 else ''}")
-        print(f"   Preferred: {', '.join(jd.preferred_skills[:5])}\n")
+        print(f"   Required: {jd.required_skills}")
+        print(f"   Preferred: {jd.preferred_skills}")
+        print(f"   Key Phrases: {jd.key_phrases}")
 
         # ③ Call LLM
         print(f"③ Calling {self.MODEL_LABELS.get(self.model, self.model)} API...")
         llm_fn = call_anthropic if self.model == "anthropic" else call_openai
         llm_output = llm_fn(resume, jd)
         conf = llm_output.get("confidence", {})
-        print(f"   {len(llm_output.get('bullet_rewrites', []))} bullet rewrites")
+        # print(f"   {len(llm_output.get('bullet_rewrites', []))} bullet rewrites")
         print(f"   ATS coverage: {conf.get('ats_keyword_coverage', 'N/A')}")
         print(f"   Truthfulness violations: {conf.get('truthfulness_violations', 'N/A')}\n")
 
@@ -107,7 +109,7 @@ class ResumeTailorPipeline:
 
         # Done
         self._footer(tex_path, pdf_path, pages)
-        self._print_diff(llm_output)
+        # self._print_diff(llm_output)
 
         result = self._result(tex_path, pdf_path, llm_output)
         self.tracker.log(company, title, self.model, result)
@@ -121,7 +123,6 @@ class ResumeTailorPipeline:
         print(f"\n{'='*60}")
         print(f"  Resume Tailor Pipeline")
         print(f"  Target: {title} @ {company}")
-        print(f"  Model:  {label}")
         print(f"{'='*60}\n")
 
     def _footer(self, tex_path: str, pdf_path: str, pages: int):

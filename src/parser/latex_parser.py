@@ -12,7 +12,7 @@ Handles:
 """
 
 import re
-from src.data_models.resume_models import (
+from src.models.resume import (
     Bullet, SkillCategory, ExperienceEntry, ProjectEntry,
     Section, ResumeJSON,
 )
