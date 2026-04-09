@@ -111,7 +111,7 @@ class LaTeXInjector:
 
         rationale = selection.get("rationale", "")
         if rationale:
-            print(f"   Projects selected: {sorted(selected)} — {rationale[:80]}")
+            print(f"   Projects selected: {sorted(selected)} — {rationale}")
 
     # ── Bullet rewrites (experience, projects, teaching) ──
 
@@ -224,13 +224,13 @@ class LaTeXInjector:
                         old_line,
                     )
                     if m:
-                        lines[cat.line_number] = m.group(1) + skills_data[cat.category] + m.group(3)
+                        lines[cat.line_number] = m.group(1) + self._escape_latex(skills_data[cat.category]) + m.group(3)
         elif isinstance(skills_data, str):
             first_cat = section.skill_categories[0]
             old_line = lines[first_cat.line_number]
             m = re.search(r'(\\textbf\{[^}]+\}\s*\{:\s*)(.+?)(\}\s*\\\\?\s*)$', old_line)
             if m:
-                lines[first_cat.line_number] = m.group(1) + skills_data + m.group(3)
+                lines[first_cat.line_number] = m.group(1) + self._escape_latex(skills_data) + m.group(3)
 
     # ── Summary rewrite ──
 
@@ -239,6 +239,7 @@ class LaTeXInjector:
         if not new_summary or resume.summary_line_start == 0:
             return
 
+        new_summary = self._escape_latex(new_summary)
         for i in range(resume.summary_line_start, resume.summary_line_end + 1):
             line = lines[i].strip()
             if not line or line.startswith('%') or line.startswith(r'\vspace'):
