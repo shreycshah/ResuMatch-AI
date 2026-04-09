@@ -31,7 +31,7 @@ def call_anthropic(resume: ResumeJSON, jd: JobDescription) -> dict:
     max_tokens = cfg.max_tokens_for("anthropic")
     system_prompt = cfg.prompt
 
-    print(f"   [resume_tailoring] anthropic / {model}")
+    print(f"   provider: anthropic / {model}")
     client = anthropic.Anthropic()
     user_msg = build_user_prompt(resume, jd)
 
@@ -81,7 +81,7 @@ def call_openai(resume: ResumeJSON, jd: JobDescription) -> dict:
     max_tokens = cfg.max_tokens_for("openai")
     system_prompt = cfg.prompt
 
-    print(f"   [resume_tailoring] openai / {model}")
+    print(f"   provider: openai / {model}")
     client = OpenAI()
     user_msg = build_user_prompt(resume, jd)
 

@@ -43,7 +43,7 @@ class JDParser:
         jd = JobDescription(company=company, title=title, raw_text=raw_text)
 
         if not self._cfg.enabled:
-            print("JD extraction disabled in llm_config.yaml — falling back to regex heuristics")
+            print("   ⚠ JD extraction disabled in llm_config.yaml — using regex heuristics")
             self._regex_fallback(jd, raw_text)
             return jd
 
@@ -53,7 +53,7 @@ class JDParser:
             jd.preferred_skills = extracted["preferred_skills"]
             jd.key_phrases = extracted["key_phrases"]
         else:
-            print("LLM extraction failed — falling back to regex heuristics")
+            print("   ⚠ LLM extraction failed — falling back to regex heuristics")
             self._regex_fallback(jd, raw_text)
 
         return jd
@@ -61,7 +61,7 @@ class JDParser:
     # ── LLM extraction ──
 
     def _llm_extract(self, raw_text: str) -> Optional[dict]:
-        print(f"   [jd_extraction] {self._provider} / {self._cfg.model}")
+        print(f"   provider: {self._provider} / {self._cfg.model}")
         try:
             if self._provider == "anthropic":
                 text = self._call_anthropic(raw_text)
@@ -72,7 +72,10 @@ class JDParser:
             text = re.sub(r"\s*```$", "", text)
 
             data = json.loads(text)
-            print("JD extraction successful via LLM")
+            print(f"   JD extraction complete")
+            print(f"   - required skills: {data['required_skills']}")
+            print(f"   - preferred_skills: {data['preferred_skills']}")
+            print(f"   - key_phrases: {data['key_phrases']}")
             return self._validate_extraction(data)
 
         except (
@@ -82,7 +85,7 @@ class JDParser:
             KeyError,
             IndexError,
         ) as exc:
-            print(f"LLM extraction error: {exc}")
+            print(f"   ⚠ LLM extraction error: {exc}")
             return None
 
     def _call_anthropic(self, raw_text: str) -> str:
@@ -121,7 +124,7 @@ class JDParser:
         """Ensure the LLM response has the right shape and types."""
         required_keys = {"required_skills", "preferred_skills", "key_phrases"}
         if not required_keys.issubset(data.keys()):
-            print(f"Missing keys in LLM response: {required_keys - data.keys()}")
+            print(f"   ⚠ Missing keys in LLM response: {required_keys - data.keys()}")
             return None
 
         for key in required_keys:

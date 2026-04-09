@@ -49,7 +49,7 @@ class ResumeTailorPipeline:
         self._banner(company, title)
 
         # ① Parse master resume
-        print("① Parsing master resume...")
+        print("1. Parsing master resume...")
         resume, original_lines = self.parser.parse(resume_path)
         n_entry_bullets = sum(len(e.bullets) for s in resume.sections for e in s.entries)
         n_flat_bullets = sum(len(s.bullets) for s in resume.sections)
@@ -61,27 +61,28 @@ class ResumeTailorPipeline:
             print()
 
         # ② Parse job description
-        print("② Parsing job description...")
+        print("2. Parsing job description...")
         jd = self.jd_parser.parse(company, title, jd_text)
-        print(f"   Required: {jd.required_skills}")
-        print(f"   Preferred: {jd.preferred_skills}")
-        print(f"   Key Phrases: {jd.key_phrases}")
+        print(f"   {len(jd.required_skills)} required skills, {len(jd.preferred_skills)} preferred, {len(jd.key_phrases)} key phrases\n")
 
         # ③ Call LLM
-        print(f"③ Calling {self.MODEL_LABELS.get(self.model, self.model)} API...")
+        print(f"3. Calling {self.MODEL_LABELS.get(self.model, self.model)} API...")
         llm_fn = call_anthropic if self.model == "anthropic" else call_openai
         llm_output = llm_fn(resume, jd)
         conf = llm_output.get("confidence", {})
-        # print(f"   {len(llm_output.get('bullet_rewrites', []))} bullet rewrites")
+        print(f"   {len(llm_output.get('bullet_rewrites', []))} bullet rewrites")
         print(f"   ATS coverage: {conf.get('ats_keyword_coverage', 'N/A')}")
         print(f"   Truthfulness violations: {conf.get('truthfulness_violations', 'N/A')}\n")
 
         # ④ Inject changes
-        print("④ Injecting changes into LaTeX...")
+        print("4. Injecting changes into LaTeX...")
         modified_lines = self.injector.inject(original_lines, resume, llm_output)
+        summary_changed = "✓" if llm_output.get("tailored_summary") else "–"
+        skills_changed = "✓" if llm_output.get("skills_reordered") else "–"
+        print(f"   Summary: {summary_changed}   Skills: {skills_changed}")
 
         # ⑤ Write .tex + compile PDF
-        print("⑤ Compiling PDF...")
+        print("5. Compiling PDF...")
         tex_path, pdf_path, out_dir = self.output_mgr.get_output_paths(company, title)
         self.output_mgr.save_tex(modified_lines, tex_path)
 

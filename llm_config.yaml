@@ -61,7 +61,7 @@ tasks:
   # ───────────────────────────────────────────────────────────────────────────
   # Task 2: Resume Tailoring
   # Rewrites bullets, reorders skills, selects projects, and updates the summary
-  # to maximise ATS keyword coverage for the target role.
+  # to maximize ATS keyword coverage for the target role.
   #
   # provider list   — set enabled: true on the provider you want to use
   # model           — model ID for that provider
@@ -92,7 +92,7 @@ tasks:
            - Use truthfulness_flag "yellow" for any such inference so the candidate can review.
         2. METRICS: Preserve original numbers exactly. You may add context/keywords around them but never change the values.
         3. KEYWORDS: Integrate JD keywords aggressively but readably — up to 3-4 terms per bullet. Prioritize hard skills and tools the ATS will scan for.
-        4. FORMAT: Plain text only. No LaTeX commands, no backslashes, no curly braces, no special characters like &, %, #, $. Write "and" instead of "&".
+        4. FORMAT: Plain text only. No LaTeX commands, no backslashes, no curly braces. Allowed special characters: + % , ; only (if required). All others are forbidden — write "and" not "&", no #, $, ~, ^, em dashes, or underscores.
         5. OUTPUT: Respond ONLY with valid JSON matching the schema below. No markdown fences, no commentary, no text outside the JSON.
 
       SUMMARY RULES:
@@ -101,6 +101,7 @@ tasks:
         - Before outputting tailored_summary, count its characters internally. If over 220, shorten and recount. Do not output until confirmed <= 220.
         - Impact-driven: highlight measurable achievements and core technical skills.
         - Plain text, no LaTeX.
+        - Do not use any em dashes
 
       TECHNICAL SKILLS RULES:
         - ALWAYS return ALL skill categories from the resume, reordered to front-load JD matches. Never return null. Output in the JSON key "skills_reordered".
@@ -112,14 +113,17 @@ tasks:
         - Only rewrite bullets for selected projects — do NOT include bullet_rewrites for unselected projects.
         - The injector will comment out unselected projects in the LaTeX.
 
-      EXPERIENCE / PROJECT REWRITE RULES:
+      EXPERIENCE / PROJECT REWRITE RULES:it already has keywords from the JD then you may skip.
+        - SELECTIVE REWRITING: Do NOT rewrite every bullet. Skip a bullet if it already contains relevant JD keywords and follows strong STAR structure. Only rewrite when a bullet is missing JD terminology, lacks a clear action verb, or would materially benefit from restructuring.
         - STAR METHOD for every bullet: [Action Verb] + [Task/Context] + [Method/Tools] + [Result/Impact].
           Pattern: "[Verb] [what you did] using [tools/skills], resulting in [measurable outcome]"
           Example: "Engineered real-time recommendation pipeline using PySpark and Redis, reducing serving latency by 30%"
           Not every bullet needs all four STAR components. Prioritize: Action > Task > Result > Situation. Never pad with filler.
         - Lead with strong, varied action verbs (Engineered, Deployed, Optimized, Architected, Spearheaded, Orchestrated, Automated, Designed). Do NOT repeat the same verb consecutively.
         - Bridge terminology aggressively toward JD language. If the underlying work is even partially related, use the JD's phrasing.
-        - Every rewritten bullet MUST be 23-28 words. Count before outputting. Reject and rewrite if outside this range.
+        - Every rewritten bullet MUST be 26-30 words. Count before outputting. Reject and rewrite if outside this range.
+        - Do NOT end the bullet with a full stop(.)
+        - Use % and + symbol instead of terms like 'percent' and 'plus'.
 
       TRUTHFULNESS FLAGS:
         green  = directly supported by resume
@@ -127,7 +131,7 @@ tasks:
 
       OUTPUT JSON SCHEMA:
         {
-          "tailored_summary": "string or null — plain text, no LaTeX, <= 220 chars, following SUMMARY RULES",
+          "tailored_summary": "string or null — plain text, no LaTeX, following SUMMARY RULES, especially - Exactly 1-2 sentences. HARD LIMIT: <= 220 characters",
           "project_selection": {
             "selected_indices": [0, 2],
             "rationale": "Why these 2 projects are most relevant to the JD"
